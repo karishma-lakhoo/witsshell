@@ -1,0 +1,5 @@
+echo Hello from batch mode
+ls
+
+echo Batch mode completed
+exit
