@@ -193,7 +193,7 @@ void execute_command(char *args[], int counter) {
         strcat(executable_path, args[0]);
 //        printf("test %s\n", search_paths[i]);
 //        snprintf(executable_path, sizeof(executable_path), "%s%s", search_paths[i], args[0]);
-        printf("Full path for %s: %s\n", args[0], executable_path);
+//        printf("Full path for %s: %s\n", args[0], executable_path);
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
@@ -216,6 +216,19 @@ void execute_command(char *args[], int counter) {
     }
 }
 
+
+//void redirection(char *args[], int counter){
+//    char *output_file = NULL;
+//    bool redirect = false;
+//    for(int i = 0; i < counter; i++){
+//        if(strcmp(args[i], ">") == 0){
+//            if(i+1 < counter || i == 0 || i < counter-1){
+//                fprintf(stderr, "An error occurred REDIRECT\n");            }
+//            output_file = args[i+1];
+//            args[i] = NULL;
+//        }
+//    }
+//}
 
 void interactive_mode(){
     char *input = NULL;
@@ -303,11 +316,10 @@ int main(int MainArgc, char *MainArgv[]){
 //    Batch mode
     else if (MainArgc == 2){
         batch_mode(MainArgv[1]);
-//        printf("batchy mode");
     }
 //    Error: neither chosen
     else{
-//        fprintf("invalid usuage of shell");
+//        fprintf("invalid usage of shell");
         fprintf(stderr, "Usage: %s [batch_file]\n", MainArgv[0]);
         exit(1);
     }
