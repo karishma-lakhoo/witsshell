@@ -12,8 +12,10 @@
 //initial search path is set to bin
 char* search_paths[MAX_PATHS];
 int num_search_paths = 1;
+// error message
+char error_message[30]="An error has occurred\n";
 
-int exit_function();
+int exit_function(char **args, int counter);
 int cd_function(char **args, int counter);
 int path_function(char **args,int counter);
 
@@ -29,20 +31,29 @@ builtin builtins[] = {
         {NULL, NULL}
 };
 
-int exit_function(){
-    exit(0);
+int exit_function(char **args, int counter){
+    if(counter != 1){
+        write(STDERR_FILENO, error_message, strlen(error_message));
+    }
+    else{
+        exit(0);
+    }
+    return 0;
 }
 
 int cd_function(char **args, int counter) {
     if (args[1] == NULL) {
-        fprintf(stderr, "cd: missing argument\n");
+//        fprintf(stderr, "cd: missing argument\n");
+        write(STDERR_FILENO, error_message, strlen(error_message));
     }
     else if (counter > 2) {
-        fprintf(stderr, "cd: too many arguments\n");
+//        fprintf(stderr, "cd: too many arguments\n");
+        write(STDERR_FILENO, error_message, strlen(error_message));
     }
     else {
         if (chdir(args[1]) != 0) {
-            perror("cd");
+//            perror("cd");
+            write(STDERR_FILENO, error_message, strlen(error_message));
         }
     }
     return 0;
@@ -76,7 +87,7 @@ int path_function(char **args,int counter){
 //        NO YOU NEED TO SET IT SO THAT ITLL ONLY USE THE BUILTIN FUNCTIONS
         search_paths[0] = strdup("/bin/");
         num_search_paths = 0;
-        printf("Path set to empty.\n");
+//        printf("Path set to empty.\n");
         return 0;
     }
 
@@ -84,10 +95,10 @@ int path_function(char **args,int counter){
     for(int i=0; i< num_search_paths;i++){
         search_paths[i] = strdup(args[i+1]);
     }
-    for(int i = 0; i < 10; i++){
-        printf("Updated path: %s\n", search_paths[i]);
-
-    }
+//    for(int i = 0; i < 10; i++){
+//        printf("Updated path: %s\n", search_paths[i]);
+//
+//    }
     return 0;
 
 //    n_processes = counter - 2;
@@ -173,6 +184,8 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
 void execute_command(char *args[], int counter) {
     int x = 0;
     bool command_found = false;
+    char *output_file = NULL;
+    bool redirect = false;
 
     // Check if the command is a built-in one
     while (builtins[x].name != NULL) {
@@ -186,6 +199,23 @@ void execute_command(char *args[], int counter) {
         x++;
     }
 
+
+    // Detects if Redirection operator is present and valid
+    for(int i = 0; i < counter; i++){
+        if(strcmp(args[i], ">") == 0){
+            if(i+1 < counter || i == 0 || i < counter-1){
+//                fprintf(stderr, "An error occurred REDIRECT\n");
+                write(STDERR_FILENO, error_message, strlen(error_message));
+
+                exit(0);
+            }
+            redirect = true;
+            output_file = args[i+1];
+            args[i] = NULL; // Removes redirection operator from command
+        }
+    }
+
+
     // Search for the executable in search paths
     for (int i = 0; i < num_search_paths; i++) {
         char executable_path[256];
@@ -197,7 +227,22 @@ void execute_command(char *args[], int counter) {
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
+                if(redirect){
+                    // O_CREAT creates file if it doesn't exist
+                    int filed = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+                    if(filed == -1){
+//                        perror("Error opening output file");
+                        write(STDERR_FILENO, error_message, strlen(error_message));
+
+                        exit(1);
+                    }
+                    dup2(filed, STDOUT_FILENO);
+                    dup2(filed, STDERR_FILENO);
+                    close(filed);
+                }
+
                 args[0] = executable_path;
+//                args[0] = args[0];
                 execvp(args[0], args);
                 perror("Error");
                 exit(1);
@@ -212,7 +257,9 @@ void execute_command(char *args[], int counter) {
     }
 
     if (!command_found) {
-        fprintf(stderr, "Command not found: %s\n", args[0]);
+//        fprintf(stderr, "Command not found: %s\n", args[0]);
+        write(STDERR_FILENO, error_message, strlen(error_message));
+
     }
 }
 
@@ -239,12 +286,12 @@ void interactive_mode(){
 //    if the end-of-file marker (EOF) has been reached, exit while loop
         if(feof(stdin)){
             printf("\n");
-            exit_function();
+            exit(0);
         }
 //        if the user types "exit"
-        if (strcmp(input, "exit\n") == 0) {
-            exit_function();
-        }
+//        if (strcmp(input, "exit\n") == 0) {
+//            exit_function();
+//        }
         size_t max_args = 10;
         char *args[max_args];
         int counter = 0;
@@ -282,7 +329,9 @@ void batch_mode_execute_line(char* line){
 void batch_mode(const char *batch_file_path){
     FILE *batch_file = fopen(batch_file_path, "r");
     if (batch_file == NULL){
-        perror("Error opening batch file");
+//        perror("Error opening batch file");
+        write(STDERR_FILENO, error_message, strlen(error_message));
+
         exit(1);
     }
 
@@ -299,7 +348,7 @@ void batch_mode(const char *batch_file_path){
         batch_mode_execute_line(line);
     }
     fclose(batch_file);
-    exit_function();
+    exit(0);
 }
 
 
@@ -320,7 +369,10 @@ int main(int MainArgc, char *MainArgv[]){
 //    Error: neither chosen
     else{
 //        fprintf("invalid usage of shell");
-        fprintf(stderr, "Usage: %s [batch_file]\n", MainArgv[0]);
+//        fprintf(stderr, "Usage: %s [batch_file]\n", MainArgv[0]);
+        write(STDERR_FILENO, error_message, strlen(error_message));
+
+
         exit(1);
     }
 
