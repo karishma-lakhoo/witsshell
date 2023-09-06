@@ -132,11 +132,32 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
 
     while ((token = strsep(&input_copy, delimiter)) != NULL) {
         if (strlen(token) > 0){
+
+// Check for redirection operator and split it into separate tokens
+            char *redirection = NULL;
+            while ((redirection = strstr(token, ">")) != NULL) {
+//                while there are more ">" characters within the token, continue splitting
+                if (redirection > token) {
+                    if (*counter < max_tokens - 1) {
+                        toks[*counter] = strndup(token, redirection - token);
+                        (*counter)++;
+                    } else {
+                        break;
+                    }
+                }
+                if (*counter < max_tokens - 1) {
+                    toks[*counter] = strdup(">");
+                    (*counter)++;
+                } else {
+                    break;
+                }
+                // Move the token pointer past the ">"
+                token = redirection + 1;
+            }
+
             if (*counter < max_tokens - 1) {
                 toks[*counter] = strdup(token);
                 (*counter)++;
-            } else{
-                break;
             }
         }
     }
@@ -226,7 +247,7 @@ void execute_command(char *args[], int counter) {
         strcat(executable_path, args[0]);
 //        printf("test %s\n", search_paths[i]);
 //        snprintf(executable_path, sizeof(executable_path), "%s%s", search_paths[i], args[0]);
-        printf("Full path for %s: %s\n", args[0], executable_path);
+//        printf("Full path for %s: %s\n", args[0], executable_path);
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
@@ -257,9 +278,6 @@ void execute_command(char *args[], int counter) {
             }
         }
     }
-
-
-
 
     if (!command_found) {
 //        fprintf(stderr, "Command not found: %s\n", args[0]);
