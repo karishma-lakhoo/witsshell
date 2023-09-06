@@ -255,7 +255,7 @@ void execute_command(char *args[], int counter) {
                     // O_CREAT creates file if it doesn't exist
                     int filed = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
                     if(filed == -1){
-                        perror("Error opening output file");
+//                        perror("Error opening output file");
                         write(STDERR_FILENO, error_message, strlen(error_message));
                         exit(1);
                     }
