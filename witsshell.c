@@ -135,6 +135,8 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
             if (*counter < max_tokens - 1) {
                 toks[*counter] = strdup(token);
                 (*counter)++;
+            } else{
+                break;
             }
         }
     }
@@ -203,15 +205,16 @@ void execute_command(char *args[], int counter) {
     // Detects if Redirection operator is present and valid
     for(int i = 0; i < counter; i++){
         if(strcmp(args[i], ">") == 0){
-            if(i+1 < counter || i == 0 || i < counter-1){
+            if(i+1 == counter-1){
+                redirect = true;
+                output_file = args[i+1];
+                args[i] = NULL; // Removes redirection operator from command
+            }
+            else if(i+1 == counter || i < counter-1 || i==0){
 //                fprintf(stderr, "An error occurred REDIRECT\n");
                 write(STDERR_FILENO, error_message, strlen(error_message));
-
                 exit(0);
             }
-            redirect = true;
-            output_file = args[i+1];
-            args[i] = NULL; // Removes redirection operator from command
         }
     }
 
@@ -223,7 +226,7 @@ void execute_command(char *args[], int counter) {
         strcat(executable_path, args[0]);
 //        printf("test %s\n", search_paths[i]);
 //        snprintf(executable_path, sizeof(executable_path), "%s%s", search_paths[i], args[0]);
-//        printf("Full path for %s: %s\n", args[0], executable_path);
+        printf("Full path for %s: %s\n", args[0], executable_path);
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
@@ -231,9 +234,8 @@ void execute_command(char *args[], int counter) {
                     // O_CREAT creates file if it doesn't exist
                     int filed = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
                     if(filed == -1){
-//                        perror("Error opening output file");
+                        perror("Error opening output file");
                         write(STDERR_FILENO, error_message, strlen(error_message));
-
                         exit(1);
                     }
                     dup2(filed, STDOUT_FILENO);
@@ -255,6 +257,9 @@ void execute_command(char *args[], int counter) {
             }
         }
     }
+
+
+
 
     if (!command_found) {
 //        fprintf(stderr, "Command not found: %s\n", args[0]);
