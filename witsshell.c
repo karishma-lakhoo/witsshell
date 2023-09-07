@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #define MAX_PATHS 20
+#define MAX_COMMANDS 10
 
 //initial search path is set to bin
 char* search_paths[MAX_PATHS];
@@ -204,11 +205,124 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
 //        perror("Fork error");
 //    }
 //}
+void execute_parallel_commands(char *args[], int counter) {
+    int num_commands = 0;
+    char *commands[MAX_COMMANDS];
+    bool command_found[MAX_COMMANDS];
+    char *output_file[MAX_COMMANDS];
+    bool redirect[MAX_COMMANDS];
+
+    for (int i = 0; i < MAX_COMMANDS; i++) {
+        command_found[i] = false;
+        output_file[i] = NULL;
+        redirect[i] = false;
+    }
+    // Reset old commands
+    for (int i = 0; i < MAX_COMMANDS; i++) {
+        commands[i] = NULL;
+    }
+
+    // Separate commands using "&" and store them in the commands array
+    for (int i = 0; i < counter; i++) {
+        if (strcmp(args[i], "&") == 0) {
+            if (num_commands > 0) {
+                commands[num_commands] = NULL;
+                num_commands++;
+            }
+        } else {
+            commands[num_commands] = args[i];
+            num_commands++;
+        }
+    }
+
+    // Execute commands concurrently
+    for (int i = 0; i < num_commands; i++) {
+        if (commands[i] != NULL) {
+            // Check if the command is a built-in one
+            int x = 0;
+            while (builtins[x].name != NULL) {
+                if (strcmp(commands[i], builtins[x].name) == 0) {
+                    int status = builtins[x].func(args, counter);
+                    if (status != 0) {
+                        fprintf(stderr, "Error executing built-in command: %s\n", args[0]);
+                    }
+                    command_found[i] = true;
+                    break;
+                }
+                x++;
+            }
+
+            // If not a built-in function, search for the executable in the search paths
+            if (!command_found[i]) {
+                for (int j = 0; j < num_search_paths; j++) {
+                    char executable_path[256];
+                    strcpy(executable_path, search_paths[j]);
+                    if (strlen(executable_path) > 0 && executable_path[strlen(executable_path) - 1] != '/') {
+                        strcat(executable_path, "/");
+                    }
+                    strcat(executable_path, commands[i]);
+
+                    if (access(executable_path, X_OK) == 0) {
+                        pid_t pid = fork();
+                        if (pid == 0) {
+                            if (redirect[i]) {
+                                int filed = open(output_file[i], O_WRONLY | O_CREAT | O_TRUNC, 0666);
+                                if (filed == -1) {
+                                    write(STDERR_FILENO, error_message, strlen(error_message));
+                                    exit(1);
+                                }
+                                dup2(filed, STDOUT_FILENO);
+                                dup2(filed, STDERR_FILENO);
+                                close(filed);
+                            }
+
+                            args[0] = executable_path;
+                            execvp(args[0], args);
+                            perror("Error");
+                            exit(1);
+                        } else if (pid > 0) {
+                            // Parent process should wait for child process
+                            int status;
+                            waitpid(pid, &status, 0);
+                            command_found[i] = true;
+                            break;
+                        } else {
+                            perror("Fork error");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Wait for all child processes to complete
+    for (int i = 0; i < num_commands; i++) {
+        if (commands[i] != NULL && !command_found[i]) {
+            wait(NULL);
+        }
+    }
+}
+
+
+
+
 void execute_command(char *args[], int counter) {
     int x = 0;
     bool command_found = false;
     char *output_file = NULL;
     bool redirect = false;
+    bool is_parallel = false;
+
+    // Check for the presence of '&' and execute parallel commands
+    for (int i = 0; i < counter; i++) {
+        if (strcmp(args[i], "&") == 0) {
+            is_parallel = true;
+        }
+    }
+    if(is_parallel){
+        execute_parallel_commands(args, counter);
+        return;
+    }
 
     // Check if the command is a built-in one
     while (builtins[x].name != NULL) {
@@ -221,6 +335,7 @@ void execute_command(char *args[], int counter) {
         }
         x++;
     }
+
 
 
     // Detects if Redirection operator is present and valid
@@ -248,9 +363,9 @@ void execute_command(char *args[], int counter) {
             strcat(executable_path, "/");
         }
         strcat(executable_path, args[0]);
-        printf("test %s\n", search_paths[i]);
+//        printf("test %s\n", search_paths[i]);
 //        snprintf(executable_path, sizeof(executable_path), "%s%s", search_paths[i], args[0]);
-        printf("Full path for %s: %s\n", args[0], executable_path);
+//        printf("Full path for %s: %s\n", args[0], executable_path);
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
