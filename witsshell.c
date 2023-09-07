@@ -244,10 +244,13 @@ void execute_command(char *args[], int counter) {
     for (int i = 0; i < num_search_paths; i++) {
         char executable_path[256];
         strcpy(executable_path, search_paths[i]);
+        if (strlen(executable_path) > 0 && executable_path[strlen(executable_path) - 1] != '/') {
+            strcat(executable_path, "/");
+        }
         strcat(executable_path, args[0]);
-//        printf("test %s\n", search_paths[i]);
+        printf("test %s\n", search_paths[i]);
 //        snprintf(executable_path, sizeof(executable_path), "%s%s", search_paths[i], args[0]);
-//        printf("Full path for %s: %s\n", args[0], executable_path);
+        printf("Full path for %s: %s\n", args[0], executable_path);
         if (access(executable_path, X_OK) == 0) {
             pid_t pid = fork();
             if (pid == 0) {
