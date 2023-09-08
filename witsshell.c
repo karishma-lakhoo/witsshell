@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 #define MAX_PATHS 20
-#define MAX_COMMANDS 10
+#define MAX_COMMANDS 20
 
 //initial search path is set to bin
 char* search_paths[MAX_PATHS];
@@ -137,6 +137,9 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
 // Check for redirection operator and split it into separate tokens
             char *redirection = NULL;
             while ((redirection = strstr(token, ">")) != NULL) {
+                if(strcmp(redirection, ">")==0){
+                    break;
+                }
 //                while there are more ">" characters within the token, continue splitting
                 if (redirection > token) {
                     if (*counter < max_tokens - 1) {
@@ -457,7 +460,7 @@ void interactive_mode(){
 //        if (strcmp(input, "exit\n") == 0) {
 //            exit_function();
 //        }
-        size_t max_args = 10;
+        size_t max_args = 20;
         char *args[max_args];
         int counter = 0;
         for(int i = 0; i < counter; i++){
