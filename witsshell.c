@@ -156,6 +156,30 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
                 token = redirection + 1;
             }
 
+            // Check for '&' character and split it into separate tokens
+            char *parallel = NULL;
+            while ((parallel = strstr(token, "&")) != NULL) {
+                if(strcmp(parallel, "&")==0){
+                    break;
+                }
+                if (parallel > token) {
+                    if (*counter < max_tokens - 1) {
+                        toks[*counter] = strndup(token, parallel - token);
+                        (*counter)++;
+                    } else {
+                        break;
+                    }
+                }
+                if (*counter < max_tokens - 1) {
+                    toks[*counter] = strdup("&");
+                    (*counter)++;
+                } else {
+                    break;
+                }
+                // Move the token pointer past the '&'
+                token = parallel + 1;
+            }
+
             if (*counter < max_tokens - 1) {
                 toks[*counter] = strdup(token);
                 (*counter)++;
@@ -436,6 +460,10 @@ void interactive_mode(){
         size_t max_args = 10;
         char *args[max_args];
         int counter = 0;
+        for(int i = 0; i < counter; i++){
+            args[i] = NULL;
+        }
+
         parse_input(input,args," \t\n", max_args, &counter);
 
         if (counter > 0){
@@ -458,6 +486,9 @@ void batch_mode_execute_line(char* line){
     size_t max_args = 10;
     char *args[max_args];
     int counter = 0;
+    for(int i = 0; i < counter; i++){
+        args[i] = NULL;
+    }
     parse_input(line, args, " \t\n", max_args, &counter);
     if (counter > 0) {
         execute_command(args, counter);
@@ -498,6 +529,7 @@ void batch_mode(const char *batch_file_path){
 
 int main(int MainArgc, char *MainArgv[]){
     search_paths[0] = strdup("/bin/");
+
     //    to differentiate between interactive mode and batch mode
 //    Interactive mode
     if (MainArgc == 1){
