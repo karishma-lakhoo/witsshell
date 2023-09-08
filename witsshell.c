@@ -244,26 +244,40 @@ void execute_parallel_commands(char *args[], int counter) {
         output_file[i] = NULL;
         redirect[i] = false;
     }
+
     // Reset old commands
     for (int i = 0; i < MAX_COMMANDS; i++) {
         commands[i] = NULL;
     }
 
+    int current_command = 0;  // Index to keep track of the current command
+
     // Separate commands using "&" and store them in the commands array
     for (int i = 0; i < counter; i++) {
         if (strcmp(args[i], "&") == 0) {
-            if (num_commands > 0) {
-                commands[num_commands] = NULL;
-                num_commands++;
+            if (current_command > 0) {
+                commands[current_command] = NULL;
+                current_command++;
+            }
+        } else if (strcmp(args[i], ">") == 0) {
+            // Handle redirection
+            if (current_command > 0) {
+                output_file[current_command - 1] = args[i + 1];
+                redirect[current_command - 1] = true;
+                i++;  // Skip the next argument as it's the output file
+            } else {
+                // Invalid syntax: Redirection without a preceding command
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                return;
             }
         } else {
-            commands[num_commands] = args[i];
-            num_commands++;
+            commands[current_command] = args[i];
+            current_command++;
         }
     }
 
     // Execute commands concurrently
-    for (int i = 0; i < num_commands; i++) {
+    for (int i = 0; i < current_command; i++) {
         if (commands[i] != NULL) {
             // Check if the command is a built-in one
             int x = 0;
@@ -323,13 +337,12 @@ void execute_parallel_commands(char *args[], int counter) {
     }
 
     // Wait for all child processes to complete
-    for (int i = 0; i < num_commands; i++) {
+    for (int i = 0; i < current_command; i++) {
         if (commands[i] != NULL && !command_found[i]) {
             wait(NULL);
         }
     }
 }
-
 
 
 
@@ -363,8 +376,6 @@ void execute_command(char *args[], int counter) {
         x++;
     }
 
-
-
     // Detects if Redirection operator is present and valid
     for(int i = 0; i < counter; i++){
         if(strcmp(args[i], ">") == 0){
@@ -381,6 +392,11 @@ void execute_command(char *args[], int counter) {
         }
     }
 
+    // Check if there are no valid commands and only redirection is present
+    if (args[0] == NULL) {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(0);
+    }
 
     // Search for the executable in search paths
     for (int i = 0; i < num_search_paths; i++) {
