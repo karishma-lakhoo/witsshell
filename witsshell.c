@@ -10,16 +10,23 @@
 #define MAX_PATHS 20
 #define MAX_COMMANDS 20
 
-//initial search path is set to bin
 char* search_paths[MAX_PATHS];
 int num_search_paths = 1;
+
 // error message
 char error_message[30]="An error has occurred\n";
 
 int exit_function(char **args, int counter);
 int cd_function(char **args, int counter);
 int path_function(char **args,int counter);
+void read_input_interactive_mode(char **input, size_t *buffer_size);
+void parse_input(char *input, char **toks, const char *delimiter, size_t max_tokens, int *counter);
+void execute_parallel_commands(char *args[], int counter);
+void execute_command(char *args[], int counter);
+void interactive_mode();
+void batch_mode(const char *batch_file_path);
 
+// struct for built-in commands
 typedef struct{
     char *name;
     int (*func)(char **args, int counter);
@@ -60,35 +67,15 @@ int cd_function(char **args, int counter) {
     return 0;
 }
 
-
-//int path_function(char **args){
-//    int i = 0;
-//    while(args[i+1] != NULL){
-////        updating the search path
-//        if(i < MAX_PATHS-1){
-//            paths[i] = args[i+1];
-//            i++;
-//        }
-//        else{
-//            fprintf(stderr, "Path list full\n");
-//        }
-//    }
-//}
-
-
 int path_function(char **args,int counter){
     // Free the old search paths
     for (int i = 0; i < num_search_paths; i++) {
         free(search_paths[i]);
         search_paths[i] = NULL;
     }
-//    search_paths[0] = "/bin/";
     if (counter <= 1) {
-//        fprintf(stderr, "path: missing argument(s)\n");
-//        NO YOU NEED TO SET IT SO THAT ITLL ONLY USE THE BUILTIN FUNCTIONS
         search_paths[0] = strdup("/bin/");
         num_search_paths = 0;
-//        printf("Path set to empty.\n");
         return 0;
     }
 
@@ -101,9 +88,8 @@ int path_function(char **args,int counter){
 //
 //    }
     return 0;
-
-//    n_processes = counter - 2;
 }
+
 void read_input_interactive_mode(char **input, size_t *buffer_size){
     printf("witsshell> ");
     fflush(stdout);
@@ -111,21 +97,6 @@ void read_input_interactive_mode(char **input, size_t *buffer_size){
 
 }
 
-
-
-
-//void parse_input(char *input, char **toks, const char *delimiter, size_t max_tokens, int *counter){
-//    *counter = 0;
-//    char* token = NULL;
-//
-//    while ((token = strsep(&input, delimiter)) !=NULL){
-//        if (*counter < max_tokens -1) {
-//            toks[*counter] = strdup(token);
-//            *(counter)++;
-//        }
-//    }
-//    toks[*counter] = NULL;
-//}
 void parse_input(char *input, char **toks, const char *delimiter, size_t max_tokens, int *counter) {
     *counter = 0;
     char *input_copy = strdup(input);
@@ -134,13 +105,13 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
     while ((token = strsep(&input_copy, delimiter)) != NULL) {
         if (strlen(token) > 0){
 
-// Check for redirection operator and split it into separate tokens
+//          checks for redirection operator and split it into separate tokens
             char *redirection = NULL;
             while ((redirection = strstr(token, ">")) != NULL) {
                 if(strcmp(redirection, ">")==0){
                     break;
                 }
-//                while there are more ">" characters within the token, continue splitting
+//              while there are more ">" characters within the token, continue splitting
                 if (redirection > token) {
                     if (*counter < max_tokens - 1) {
                         toks[*counter] = strndup(token, redirection - token);
@@ -155,11 +126,10 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
                 } else {
                     break;
                 }
-                // Move the token pointer past the ">"
                 token = redirection + 1;
             }
 
-            // Check for '&' character and split it into separate tokens
+            // checks for '&' character and split it into separate tokens
             char *parallel = NULL;
             while ((parallel = strstr(token, "&")) != NULL) {
                 if(strcmp(parallel, "&")==0){
@@ -179,7 +149,6 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
                 } else {
                     break;
                 }
-                // Move the token pointer past the '&'
                 token = parallel + 1;
             }
 
@@ -193,45 +162,6 @@ void parse_input(char *input, char **toks, const char *delimiter, size_t max_tok
     toks[*counter] = NULL;
 }
 
-//
-//void execute_command(char *args[], int counter) {
-//    int x = 0;
-//    bool command_found = false;
-////    Checks if commands are built-in ones
-////// you can also do it like this as it makes more sense
-////    if(strcmp(args[0], "cd")==0){
-////        int status = cd_function(args);
-////        if (status != 0) {
-////            fprintf(stderr, "Error executing built-in command: %s\n", args[0]);
-////        }
-////        return;
-////    }
-//    while (builtins[x].name != NULL) {
-//        if (strcmp(args[0], builtins[x].name) == 0) {
-//            int status = builtins[x].func(args, counter);
-//            if (status != 0) {
-//                fprintf(stderr, "Error executing built-in command: %s\n", args[0]);
-//            }
-//            return;
-//        }
-//        x++;
-//    }
-//
-////    not a built-in function, search for executable in the search paths
-//    pid_t pid = fork();
-//    if (pid == 0) {
-//        // Child process
-//        execvp(args[0], args);  // Use the full path
-//        // If execv returns, there was an error
-//        perror("Error");
-//        exit(1);
-//    } else if (pid > 0) {
-//        // Parent process
-//        wait(NULL);  // Wait for the child process to complete
-//    } else {
-//        perror("Fork error");
-//    }
-//}
 void execute_parallel_commands(char *args[], int counter) {
     int num_commands = 0;
     char *commands[MAX_COMMANDS];
@@ -250,9 +180,9 @@ void execute_parallel_commands(char *args[], int counter) {
         commands[i] = NULL;
     }
 
-    int current_command = 0;  // Index to keep track of the current command
+    int current_command = 0;
 
-    // Separate commands using "&" and store them in the commands array
+    // separates commands using "&" and store them in the commands array
     for (int i = 0; i < counter; i++) {
         if (strcmp(args[i], "&") == 0) {
             if (current_command > 0) {
@@ -260,13 +190,13 @@ void execute_parallel_commands(char *args[], int counter) {
                 current_command++;
             }
         } else if (strcmp(args[i], ">") == 0) {
-            // Handle redirection
+            // redirection
             if (current_command > 0) {
                 output_file[current_command - 1] = args[i + 1];
                 redirect[current_command - 1] = true;
-                i++;  // Skip the next argument as it's the output file
+                i++;
             } else {
-                // Invalid syntax: Redirection without a preceding command
+                // no command before ">"
                 write(STDERR_FILENO, error_message, strlen(error_message));
                 return;
             }
@@ -276,10 +206,10 @@ void execute_parallel_commands(char *args[], int counter) {
         }
     }
 
-    // Execute commands concurrently
+    // executing commands
     for (int i = 0; i < current_command; i++) {
         if (commands[i] != NULL) {
-            // Check if the command is a built-in one
+            // checks if the command is a built-in one
             int x = 0;
             while (builtins[x].name != NULL) {
                 if (strcmp(commands[i], builtins[x].name) == 0) {
@@ -293,7 +223,7 @@ void execute_parallel_commands(char *args[], int counter) {
                 x++;
             }
 
-            // If not a built-in function, search for the executable in the search paths
+            // searching for the executable in the search paths
             if (!command_found[i]) {
                 for (int j = 0; j < num_search_paths; j++) {
                     char executable_path[256];
@@ -322,14 +252,13 @@ void execute_parallel_commands(char *args[], int counter) {
                             perror("Error");
                             exit(1);
                         }
-                        // Parent process should not wait here
                     }
                 }
             }
         }
     }
 
-    // Wait for all child processes to complete
+    // waiting for all child processes to complete
     for (int i = 0; i < current_command; i++) {
         if (commands[i] != NULL && !command_found[i]) {
             wait(NULL);
@@ -337,9 +266,7 @@ void execute_parallel_commands(char *args[], int counter) {
     }
 }
 
-
-
-
+// executes a single command
 void execute_command(char *args[], int counter) {
     int x = 0;
     bool command_found = false;
@@ -347,7 +274,7 @@ void execute_command(char *args[], int counter) {
     bool redirect = false;
     bool is_parallel = false;
 
-    // Check for the presence of '&' and execute parallel commands
+    // checks for '&' and execute parallel commands
     for (int i = 0; i < counter; i++) {
         if (strcmp(args[i], "&") == 0) {
             is_parallel = true;
@@ -358,7 +285,7 @@ void execute_command(char *args[], int counter) {
         return;
     }
 
-    // Check if the command is a built-in one
+    // checks if it is a built-in command
     while (builtins[x].name != NULL) {
         if (strcmp(args[0], builtins[x].name) == 0) {
             int status = builtins[x].func(args, counter);
@@ -370,13 +297,13 @@ void execute_command(char *args[], int counter) {
         x++;
     }
 
-    // Detects if Redirection operator is present and valid
+    // is redirection present
     for(int i = 0; i < counter; i++){
         if(strcmp(args[i], ">") == 0){
             if(i+1 == counter-1){
                 redirect = true;
                 output_file = args[i+1];
-                args[i] = NULL; // Removes redirection operator from command
+                args[i] = NULL;
             }
             else if(i+1 == counter || i < counter-1 || i==0){
 //                fprintf(stderr, "An error occurred REDIRECT\n");
@@ -386,13 +313,13 @@ void execute_command(char *args[], int counter) {
         }
     }
 
-    // Check if there are no valid commands and only redirection is present
+    // only redirection symbol
     if (args[0] == NULL) {
         write(STDERR_FILENO, error_message, strlen(error_message));
         exit(0);
     }
 
-    // Search for the executable in search paths
+    // searching for the executable in search paths
     for (int i = 0; i < num_search_paths; i++) {
         char executable_path[256];
         strcpy(executable_path, search_paths[i]);
@@ -441,27 +368,13 @@ void execute_command(char *args[], int counter) {
     }
 }
 
-
-//void redirection(char *args[], int counter){
-//    char *output_file = NULL;
-//    bool redirect = false;
-//    for(int i = 0; i < counter; i++){
-//        if(strcmp(args[i], ">") == 0){
-//            if(i+1 < counter || i == 0 || i < counter-1){
-//                fprintf(stderr, "An error occurred REDIRECT\n");            }
-//            output_file = args[i+1];
-//            args[i] = NULL;
-//        }
-//    }
-//}
-
 void interactive_mode(){
     char *input = NULL;
     size_t buffer_size = 0;
 
     while(1){
         read_input_interactive_mode(&input, &buffer_size);
-//    if the end-of-file marker (EOF) has been reached, exit while loop
+//    if the end-of-file marker (EOF) has been reached
         if(feof(stdin)){
             printf("\n");
             exit(0);
@@ -537,17 +450,16 @@ void batch_mode(const char *batch_file_path){
 
 int main(int MainArgc, char *MainArgv[]){
     search_paths[0] = strdup("/bin/");
-
-    //    to differentiate between interactive mode and batch mode
-//    Interactive mode
+    //    differentiating between interactive mode and batch mode
+    //    Interactive mode
     if (MainArgc == 1){
         interactive_mode();
     }
-//    Batch mode
+    //    Batch mode
     else if (MainArgc == 2){
         batch_mode(MainArgv[1]);
     }
-//    Error: neither chosen
+    //    Error: neither chosen
     else{
 //        fprintf("invalid usage of shell");
 //        fprintf(stderr, "Usage: %s [batch_file]\n", MainArgv[0]);
