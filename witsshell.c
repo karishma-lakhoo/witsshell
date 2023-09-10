@@ -7,8 +7,8 @@
 #include <assert.h>
 #include <fcntl.h>
 
-#define MAX_PATHS 20
-#define MAX_COMMANDS 20
+#define MAX_PATHS 32
+#define MAX_COMMANDS 32
 
 char* search_paths[MAX_PATHS];
 int num_search_paths = 1;
@@ -383,7 +383,7 @@ void interactive_mode(){
 //        if (strcmp(input, "exit\n") == 0) {
 //            exit_function();
 //        }
-        size_t max_args = 20;
+        size_t max_args = 32;
         char *args[max_args];
         int counter = 0;
         for(int i = 0; i < counter; i++){
@@ -404,7 +404,7 @@ void interactive_mode(){
 }
 
 void batch_mode_execute_line(char* line){
-    size_t max_args = 10;
+    size_t max_args = 32;
     char *args[max_args];
     int counter = 0;
     for(int i = 0; i < counter; i++){
