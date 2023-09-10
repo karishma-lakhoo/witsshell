@@ -321,15 +321,8 @@ void execute_parallel_commands(char *args[], int counter) {
                             execvp(args[0], args);
                             perror("Error");
                             exit(1);
-                        } else if (pid > 0) {
-                            // Parent process should wait for child process
-                            int status;
-                            waitpid(pid, &status, 0);
-                            command_found[i] = true;
-                            break;
-                        } else {
-                            perror("Fork error");
                         }
+                        // Parent process should not wait here
                     }
                 }
             }
@@ -343,6 +336,7 @@ void execute_parallel_commands(char *args[], int counter) {
         }
     }
 }
+
 
 
 
@@ -489,15 +483,10 @@ void interactive_mode(){
             execute_command(args, counter);
         }
 
-//        processing toks array
         for (int i =0; i < counter; i++){
 //            printf("Arg %d: %s\n", i, args[i]);
             free(args[i]);
         }
-
-//        if (input) {
-//            free(input); // Free the allocated memory
-//        }
     }
 }
 
